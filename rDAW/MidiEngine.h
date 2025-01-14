@@ -5,27 +5,42 @@
 #include "libs/rtmidi/RtMidi.h"
 #include <QString>
 #include <QDebug>
+#include "Sequencer.h"
+
+// Forward declaration of the callback function
+void midiCallback(double deltaTime, std::vector<unsigned char>* message, void* userData);
 
 class MidiEngine : public QObject {
     Q_OBJECT
+
 public:
     explicit MidiEngine(QObject* parent = nullptr);
+    Sequencer& getSequencer();
     ~MidiEngine();
 
+    // Public methods
     Q_INVOKABLE void listMidiDevices();
     Q_INVOKABLE void sendMidiNoteOn(int channel, int note, int velocity);
     Q_INVOKABLE void sendMidiNoteOff(int channel, int note);
     Q_INVOKABLE QStringList getAvailableMidiDevices();
     Q_INVOKABLE void openMidiDevice(int index);
     Q_INVOKABLE void startMidiInput();
+    Q_INVOKABLE void listInputDevices();
+    Q_INVOKABLE void listOutputDevices();
+    Q_INVOKABLE void startRecording();
+    Q_INVOKABLE void stopRecording();
 
 private:
+    Sequencer sequencer;
     RtMidiIn* midiIn;
     RtMidiOut* midiOut;
+    bool isRecording = false;
+
+    // Declare the callback function as a friend
+    friend void midiCallback(double deltaTime, std::vector<unsigned char>* message, void* userData);
 
 signals:
     void midiMessageReceived(QString message);
-
 };
 
 #endif // MIDIENGINE_H

@@ -1,25 +1,44 @@
 #include <QGuiApplication>
-#include <QQmlApplicationEngine>
-#include "backend.h"
+#include <QTimer>
 #include "MidiEngine.h"
 
-
-int main(int argc, char *argv[])
-{
-#if defined(Q_OS_WIN)
-    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-#endif
-
+int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
 
-    QQmlApplicationEngine engine;
-    qmlRegisterType<Backend>("com.djdeck.backend", 1, 0, "Backend");
-    qDebug() << "Backend registered!";
-    qmlRegisterType<MidiEngine>("com.djdeck.midi", 1, 0, "MidiEngine");
-    qDebug() << "MidiEngine registered!";
-    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
-    if (engine.rootObjects().isEmpty())
-        return -1;
+    // Initialize the MIDI Engine
+    MidiEngine midiEngine;
+
+    // Start MIDI input
+    midiEngine.startMidiInput();
+
+    // Add a track to the sequencer for recording
+    auto& sequencer = midiEngine.getSequencer();
+    sequencer.addTrack("Recorded Track");
+
+    // Start playback
+    sequencer.start();
+
+    // Start recording
+    midiEngine.startRecording();
+
+    // Automatically stop recording after 10 seconds for testing
+    QTimer::singleShot(10000, [&]() {
+        midiEngine.stopRecording();
+
+        // Print recorded events for debugging
+        auto& recordedTrack = sequencer.getTrack(0);
+        qDebug() << "Recorded Events:";
+        for (const auto& event : recordedTrack.events) {
+            qDebug() << "Tick:" << event.tick
+                << "Type:" << static_cast<int>(event.type)
+                << "Channel:" << event.channel
+                << "Pitch:" << event.pitch
+                << "Velocity:" << event.velocity;
+        }
+
+        // Optionally stop playback after testing
+        sequencer.stop();
+        });
 
     return app.exec();
 }
