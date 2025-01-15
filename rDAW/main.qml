@@ -24,8 +24,6 @@ ApplicationWindow {
             height: 50
             anchors.horizontalCenter: parent.horizontalCenter
 
-
-
             Button {
                 text: isPlaying ? "Stop" : "Play"
                 onClicked: {
@@ -38,7 +36,7 @@ ApplicationWindow {
                 }
             }
 
-           Button {
+            Button {
                 text: "Rewind"
                 onClicked: {
                     backend.rewindPlayback();
@@ -120,6 +118,13 @@ ApplicationWindow {
                         }
                     }
                 }
+
+                // Sync scrolling with timeline
+                onContentYChanged: {
+                    if (eventScroll.contentY !== contentY) {
+                        eventScroll.contentY = contentY;
+                    }
+                }
             }
 
             // Timeline Events
@@ -154,6 +159,13 @@ ApplicationWindow {
                                 }
                             }
                         }
+                    }
+                }
+
+                // Sync scrolling with track names
+                onContentYChanged: {
+                    if (trackNamesScroll.contentY !== contentY) {
+                        trackNamesScroll.contentY = contentY;
                     }
                 }
             }
