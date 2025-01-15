@@ -52,6 +52,12 @@ void Sequencer::playbackLoop() {
         QThread::msleep(static_cast<unsigned long>(tickDurationMs));
         currentTick += 1;
 
+        // Handle looping
+        if (isLooping && currentTick >= loopEnd) {
+            currentTick = loopStart;
+            emit playbackPositionChanged(currentTick);
+        }
+
         emit playbackPositionChanged(currentTick);
 
         // Debug the current tick
@@ -140,4 +146,15 @@ void Sequencer::rewind() {
     currentTick = 0; // Reset playback position
     emit playbackPositionChanged(currentTick); // Notify the UI
     qDebug() << "Playback position rewound to tick:" << currentTick;
+}
+
+void Sequencer::setLoopRange(int start, int end) {
+    loopStart = start;
+    loopEnd = end;
+    qDebug() << "Loop range set to:" << loopStart << "to" << loopEnd;
+}
+
+void Sequencer::setLooping(bool looping) {
+    isLooping = looping;
+    qDebug() << "Looping set to:" << looping;
 }

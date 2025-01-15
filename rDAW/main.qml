@@ -13,7 +13,7 @@ ApplicationWindow {
 
     property bool isPlaying: false
     property bool isRecording: false
-    property int playheadPosition: 0 // Tracks the playhead position
+    property int playheadPosition: 0
 
     Column {
         spacing: 10
@@ -73,6 +73,39 @@ ApplicationWindow {
             }
         }
 
+        // Looping Controls
+        Row {
+            spacing: 10
+            height: 50
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            CheckBox {
+                id: loopingToggle
+                text: "Enable Looping"
+                onCheckedChanged: {
+                    sequencer.setLooping(checked);
+                }
+            }
+
+            TextField {
+                id: loopStartInput
+                placeholderText: "Loop Start"
+                width: 80
+                onEditingFinished: {
+                    sequencer.setLoopRange(parseInt(loopStartInput.text), parseInt(loopEndInput.text));
+                }
+            }
+
+            TextField {
+                id: loopEndInput
+                placeholderText: "Loop End"
+                width: 80
+                onEditingFinished: {
+                    sequencer.setLoopRange(parseInt(loopStartInput.text), parseInt(loopEndInput.text));
+                }
+            }
+        }
+
         // Timeline and Track List
         Row {
             spacing: 10
@@ -119,9 +152,16 @@ ApplicationWindow {
                         }
                     }
                 }
+
+                // Sync with eventScroll
+                onContentYChanged: {
+                    if (eventScroll.contentY !== contentY) {
+                        eventScroll.contentY = contentY;
+                    }
+                }
             }
 
-            // Timeline Events and Playhead
+            // Timeline Events
             Flickable {
                 id: eventScroll
                 width: parent.width * 0.7
@@ -131,43 +171,48 @@ ApplicationWindow {
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
 
-                Item {
+                Column {
+                    spacing: 10
                     width: eventScroll.contentWidth
                     height: eventScroll.contentHeight
 
-                    // Playhead
-                    Rectangle {
-                        id: playhead
-                        width: 2
-                        height: parent.height
-                        color: "blue"
-                        x: playheadPosition
-                    }
+                    Repeater {
+                        model: trackModel
 
-                    Column {
-                        spacing: 10
-                        width: parent.width
-                        height: parent.height
+                        Row {
+                            spacing: 10
+                            height: 50
 
-                        Repeater {
-                            model: trackModel
-
-                            Row {
-                                spacing: 10
-                                height: 50
-
-                                Repeater {
-                                    model: 8
-                                    Rectangle {
-                                        width: 40
-                                        height: 40
-                                        color: "red"
-                                        border.color: "black"
-                                    }
+                            Repeater {
+                                model: 8
+                                Rectangle {
+                                    width: 40
+                                    height: 40
+                                    color: "red"
+                                    border.color: "black"
                                 }
                             }
                         }
                     }
+                }
+
+                // Sync with trackNamesScroll
+                onContentYChanged: {
+                    if (trackNamesScroll.contentY !== contentY) {
+                        trackNamesScroll.contentY = contentY;
+                    }
+                }
+
+                // Playhead
+                Rectangle {
+                    id: playhead
+                    width: 2
+                    height: eventScroll.height
+                    color: "blue"
+                    x: playheadPosition
+                    anchors.top: eventScroll.top
+                    anchors.bottom: eventScroll.bottom
+                    visible: true
                 }
             }
         }
@@ -197,7 +242,6 @@ ApplicationWindow {
                         sequencer.removeTrackQml(selectedIndex);
                         console.log("Removed track at index:", selectedIndex);
 
-                        // Reset selection
                         sequencer.setSelectedTrackIndexQml(
                             trackModel.count > 0
                             ? Math.min(selectedIndex, trackModel.count - 1)
@@ -210,18 +254,10 @@ ApplicationWindow {
             }
         }
     }
-
-    // Bind playhead to Sequencer playback signal
-        Connections {
+            Connections {
             target: sequencer
             function onPlaybackPositionChanged(tick) {
-                playheadPosition = tick * 2; // Adjust tick-to-pixel ratio
-            }
-        }
-        Connections {
-            target: sequencer
-            function onTempoChanged(bpm) {
-                tempoSlider.value = bpm; // Update the slider if tempo changes programmatically
+                playheadPosition = tick * 2; // Adjust tick-to-pixel ratio if needed
             }
         }
 }

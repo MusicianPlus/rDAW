@@ -41,6 +41,9 @@ public:
     Q_INVOKABLE int getSelectedTrackIndexQml() const;
     Q_INVOKABLE void setSelectedTrackIndexQml(int index);
 
+    Q_INVOKABLE void setLoopRange(int start, int end);
+    Q_INVOKABLE void setLooping(bool looping);
+
 signals:
     void playbackPositionChanged(double tick);
     void tempoChanged(double bpm);
@@ -53,6 +56,10 @@ private:
 
     std::function<void(const MidiEvent&)> midiOutputCallback;
     int selectedTrackIndex = -1; // Keep track of the selected track
+
+    int loopStart = 0;
+    int loopEnd = 0;
+    bool isLooping = false;
 
     void playbackLoop(); // Internal playback engine
 };
