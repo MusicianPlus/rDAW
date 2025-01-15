@@ -101,6 +101,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="libs\rtmidi\RtMidi.h" />
+    <ClInclude Include="Track.h" />
     <QtMoc Include="Sequencer.h" />
     <ClInclude Include="SequencerData.h" />
     <QtMoc Include="MidiEngine.h" />

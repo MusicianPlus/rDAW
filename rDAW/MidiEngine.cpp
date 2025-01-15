@@ -21,9 +21,9 @@ MidiEngine::~MidiEngine() {
     delete midiOut;
 }
 
-// Access the sequencer
-Sequencer& MidiEngine::getSequencer() {
-    return sequencer;
+// Expose the sequencer to QML
+Sequencer* MidiEngine::getSequencer() {
+    return &sequencer;
 }
 
 // List all MIDI devices
@@ -146,15 +146,22 @@ void midiCallback(double deltaTime, std::vector<unsigned char>* message, void* u
 
     // Process recording
     if (engine->isRecording) {
-        auto& sequencer = engine->getSequencer();
+        auto& sequencer = *engine->getSequencer(); // Dereference pointer to get reference
+
         if (sequencer.getTrackCount() > 0) {
-            Track& activeTrack = sequencer.getTrack(0);
+            Track& activeTrack = sequencer.getTrack(0); // Initialize activeTrack
 
             MidiEventType type = (status & 0xF0) == 0x90 && data2 > 0 ? MidiEventType::NoteOn
                 : (status & 0xF0) == 0x80 || data2 == 0 ? MidiEventType::NoteOff
                 : MidiEventType::ControlChange;
 
-            MidiEvent event(sequencer.getCurrentTick(), type, status & 0x0F, data1, data2);
+            MidiEvent event(
+                sequencer.getCurrentTick(), // Correct tick value
+                type,                       // Correct MidiEventType
+                status & 0x0F,              // Channel
+                data1,                      // Pitch
+                data2                       // Velocity
+                );
 
             activeTrack.addEvent(event);
             qDebug() << "Recorded Event:" << "Tick:" << event.tick

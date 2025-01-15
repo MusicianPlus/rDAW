@@ -1,5 +1,4 @@
 #include "Sequencer.h"
-#include <QTimer>
 #include <QtConcurrent/QtConcurrent>
 
 // Constructor
@@ -9,6 +8,8 @@ Sequencer::Sequencer(QObject* parent)
 // Add a new track
 void Sequencer::addTrack(const std::string& name) {
     tracks.emplace_back(name);
+    qDebug() << "Track added:" << QString::fromStdString(name)
+        << "Total tracks:" << tracks.size();
 }
 
 // Get a track by index
@@ -23,61 +24,78 @@ size_t Sequencer::getTrackCount() const {
 
 // Start playback
 void Sequencer::start() {
-    if (isPlaying) return;
+    if (isPlaying) {
+        qDebug() << "Sequencer is already playing";
+        return;
+    }
 
     isPlaying = true;
+    qDebug() << "Sequencer started";
+
+    // Run playbackLoop in a separate thread
     QtConcurrent::run([this]() { playbackLoop(); });
 }
 
 // Stop playback
 void Sequencer::stop() {
+    if (!isPlaying) {
+        qDebug() << "Sequencer is already stopped";
+        return;
+    }
+
     isPlaying = false;
+    qDebug() << "Sequencer stopped";
 }
 
-// Set the tempo (BPM)
+// Set the tempo
 void Sequencer::setTempo(double bpm) {
     tempo = bpm;
+    qDebug() << "Tempo set to:" << bpm << "BPM";
 }
 
-// Set the MIDI output callback
-void Sequencer::setMidiOutputCallback(std::function<void(const MidiEvent&)> callback) {
-    midiOutputCallback = callback;
-}
-
-// Main playback loop
+// Playback loop
 void Sequencer::playbackLoop() {
     while (isPlaying) {
-        // Calculate tick duration in milliseconds
-        double tickDurationMs = 60000.0 / (tempo * 480); // Assuming 480 ticks per quarter note
-        QThread::msleep(static_cast<unsigned long>(tickDurationMs));
+        QThread::msleep(50); // Simulate a 50ms step for playback
+        currentTick += 1;    // Advance playback position
+        emit playbackPositionChanged(currentTick); // Signal for real-time UI updates
 
-        for (auto& track : tracks) {
-            // Advance the track-specific tick
-            track.trackTick++;
+        // Debugging playback progress
+        qDebug() << "Playback tick:" << currentTick;
+    }
+}
 
-            // Handle looping for this track
-            if (track.isLooping && track.trackTick > track.loopEnd) {
-                qDebug() << "Looping Track:" << QString::fromStdString(track.name)
-                    << "Back to Tick:" << track.loopStart;
-                track.trackTick = track.loopStart;
-            }
+// Wrapper for QML: Add track
+void Sequencer::addTrackQml(const QString& name) {
+    addTrack(name.toStdString());
+}
 
-            // Process events for the current track's tick
-            for (const auto& event : track.events) {
-                if (static_cast<int>(event.tick) == static_cast<int>(track.trackTick)) {
-                    qDebug() << "Processing Event: Track:" << QString::fromStdString(track.name)
-                        << "Tick:" << event.tick
-                        << "Type:" << static_cast<int>(event.type)
-                        << "Channel:" << event.channel
-                        << "Pitch:" << event.pitch
-                        << "Velocity:" << event.velocity;
+// Wrapper for QML: Get track count
+int Sequencer::getTrackCountQml() const {
+    return static_cast<int>(getTrackCount());
+}
 
-                    // Send the event via the callback
-                    if (midiOutputCallback) {
-                        midiOutputCallback(event);
-                    }
-                }
-            }
-        }
+// Wrapper for QML: Start playback
+void Sequencer::startQml() {
+    start();
+}
+
+// Wrapper for QML: Stop playback
+void Sequencer::stopQml() {
+    stop();
+}
+
+// Wrapper for QML: Set tempo
+void Sequencer::setTempoQml(double bpm) {
+    setTempo(bpm);
+}
+
+void Sequencer::removeTrackQml(int index) {
+    if (index >= 0 && index < static_cast<int>(tracks.size())) {
+        qDebug() << "Removing track at index:" << index;
+        tracks.erase(tracks.begin() + index);
+    }
+    else {
+        qDebug() << "Invalid track index:" << index;
     }
 }

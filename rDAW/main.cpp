@@ -1,44 +1,28 @@
 #include <QGuiApplication>
-#include <QTimer>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include "MidiEngine.h"
 
 int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
 
-    // Initialize the MIDI Engine
+    QQmlApplicationEngine engine;
+
+    // Register the Sequencer class for QML
+    qmlRegisterType<Sequencer>("Sequencer", 1, 0, "Sequencer");
+
+    // Create an instance of MidiEngine
     MidiEngine midiEngine;
 
-    // Start MIDI input
-    midiEngine.startMidiInput();
+    // Expose MidiEngine to QML
+    engine.rootContext()->setContextProperty("midiEngine", &midiEngine);
 
-    // Add a track to the sequencer for recording
-    auto& sequencer = midiEngine.getSequencer();
-    sequencer.addTrack("Recorded Track");
+    // Load the main QML file
+    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
 
-    // Start playback
-    sequencer.start();
-
-    // Start recording
-    midiEngine.startRecording();
-
-    // Automatically stop recording after 10 seconds for testing
-    QTimer::singleShot(10000, [&]() {
-        midiEngine.stopRecording();
-
-        // Print recorded events for debugging
-        auto& recordedTrack = sequencer.getTrack(0);
-        qDebug() << "Recorded Events:";
-        for (const auto& event : recordedTrack.events) {
-            qDebug() << "Tick:" << event.tick
-                << "Type:" << static_cast<int>(event.type)
-                << "Channel:" << event.channel
-                << "Pitch:" << event.pitch
-                << "Velocity:" << event.velocity;
-        }
-
-        // Optionally stop playback after testing
-        sequencer.stop();
-        });
+    if (engine.rootObjects().isEmpty()) {
+        return -1;
+    }
 
     return app.exec();
 }

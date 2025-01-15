@@ -15,8 +15,10 @@ class MidiEngine : public QObject {
 
 public:
     explicit MidiEngine(QObject* parent = nullptr);
-    Sequencer& getSequencer();
     ~MidiEngine();
+
+    // Expose the sequencer to QML
+    Q_INVOKABLE Sequencer* getSequencer();
 
     // Public methods
     Q_INVOKABLE void listMidiDevices();
@@ -36,7 +38,6 @@ private:
     RtMidiOut* midiOut;
     bool isRecording = false;
 
-    // Declare the callback function as a friend
     friend void midiCallback(double deltaTime, std::vector<unsigned char>* message, void* userData);
 
 signals:

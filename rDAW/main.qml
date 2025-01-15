@@ -1,34 +1,88 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import com.djdeck.midi 1.0
+import QtQuick 6.8
+import QtQuick.Controls 6.8
 
 ApplicationWindow {
     visible: true
-    width: 800
+    width: 1000
     height: 600
-    title: "MIDI Input"
+    title: "Dynamic Timeline - Fixed"
 
-    MidiEngine {
-        id: midiEngine
-        onMidiMessageReceived: {
-            messageLog.text += message + "\n";
-        }
+    ListModel {
+        id: trackModel
     }
 
     Column {
-        anchors.centerIn: parent
-        spacing: 10
+        anchors.fill: parent
 
-        TextArea {
-            id: messageLog
-            width: 600
-            height: 400
-            readOnly: true
+        // Track List Controls
+        Row {
+            spacing: 10
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            Button {
+                text: "Add Track"
+                onClicked: {
+                    let trackName = "Track " + (trackModel.count + 1);
+                    trackModel.append({ "name": trackName }); // Ensure "name" is defined
+                    console.log("Track added:", trackName);
+                }
+            }
+
+            Button {
+                text: "Remove Track"
+                onClicked: {
+                    if (trackModel.count > 0) {
+                        trackModel.remove(trackModel.count - 1);
+                        console.log("Last track removed.");
+                    }
+                }
+            }
         }
 
-        Button {
-            text: "Start Listening"
-            onClicked: midiEngine.startMidiInput()
+        // Timeline
+        Flickable {
+            width: parent.width
+            height: parent.height - 100
+            contentWidth: 2000 // Scrollable horizontally
+            contentHeight: trackModel.count * 60 // Dynamic height for track rows
+            clip: true
+
+            Column {
+                width: 2000 // Match Flickable's contentWidth
+                spacing: 10
+
+                Repeater {
+                    model: trackModel
+
+                    Row {
+                        spacing: 10
+                        height: 50
+
+                        // Track Name
+                        Text {
+                            text: model.name || "Unnamed Track" // Fallback to prevent undefined
+                            width: 100
+                            color: "black"
+                        }
+
+                        // Placeholder Events
+                        Repeater {
+                            model: 8 // Placeholder: 8 events per track
+                            Rectangle {
+                                width: 40
+                                height: 40
+                                color: "red"
+                                border.color: "black"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: index + 1
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
