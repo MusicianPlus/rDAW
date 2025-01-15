@@ -1,5 +1,7 @@
 #include "Sequencer.h"
 #include <QtConcurrent/QtConcurrent>
+#include <QThread>
+#include <QDebug>
 
 // Constructor
 Sequencer::Sequencer(QObject* parent)
@@ -28,12 +30,9 @@ void Sequencer::start() {
         qDebug() << "Sequencer is already playing";
         return;
     }
-
     isPlaying = true;
-    qDebug() << "Sequencer started";
-
-    // Run playbackLoop in a separate thread
     QtConcurrent::run([this]() { playbackLoop(); });
+    qDebug() << "Playback started";
 }
 
 // Stop playback
@@ -42,9 +41,8 @@ void Sequencer::stop() {
         qDebug() << "Sequencer is already stopped";
         return;
     }
-
     isPlaying = false;
-    qDebug() << "Sequencer stopped";
+    qDebug() << "Playback stopped";
 }
 
 // Set the tempo
@@ -60,10 +58,28 @@ void Sequencer::playbackLoop() {
         currentTick += 1;    // Advance playback position
         emit playbackPositionChanged(currentTick); // Signal for real-time UI updates
 
-        // Debugging playback progress
+        // Debug the current tick
         qDebug() << "Playback tick:" << currentTick;
+
+        // Process events for each track
+        for (auto& track : tracks) {
+            for (const auto& event : track.events) {
+                if (event.tick == currentTick) {
+                    if (midiOutputCallback) {
+                        midiOutputCallback(event); // Send the event to MIDI out
+                    }
+                    qDebug() << "Playback Event:"
+                        << "Tick:" << event.tick
+                        << "Type:" << static_cast<int>(event.type)
+                        << "Channel:" << event.channel
+                        << "Pitch:" << event.pitch
+                        << "Velocity:" << event.velocity;
+                }
+            }
+        }
     }
 }
+
 
 // Wrapper for QML: Add track
 void Sequencer::addTrackQml(const QString& name) {
@@ -98,4 +114,28 @@ void Sequencer::removeTrackQml(int index) {
     else {
         qDebug() << "Invalid track index:" << index;
     }
+}
+
+int Sequencer::getSelectedTrackIndexQml() const {
+    return selectedTrackIndex;
+}
+
+void Sequencer::setSelectedTrackIndexQml(int index) {
+    if (index >= 0 && index < static_cast<int>(tracks.size())) {
+        selectedTrackIndex = index;
+        qDebug() << "Selected track index set to:" << index;
+    }
+    else {
+        qDebug() << "Invalid track index selected:" << index;
+    }
+}
+
+void Sequencer::setMidiOutputCallback(std::function<void(const MidiEvent&)> callback) {
+    midiOutputCallback = callback;
+}
+
+void Sequencer::rewind() {
+    currentTick = 0; // Reset playback position
+    emit playbackPositionChanged(currentTick); // Notify the UI
+    qDebug() << "Playback position rewound to tick:" << currentTick;
 }

@@ -1,4 +1,6 @@
 #include "MidiEngine.h"
+#include "Sequencer.h"
+
 
 // Constructor
 MidiEngine::MidiEngine(QObject* parent)
@@ -9,11 +11,17 @@ MidiEngine::MidiEngine(QObject* parent)
 
         // Set the callback function
         midiIn->setCallback(&midiCallback, this);
+
+        // List available devices
+        qDebug() << "Listing available MIDI devices:";
+        listInputDevices();
+        listOutputDevices();
     }
     catch (RtMidiError& error) {
         qDebug() << "Error initializing MIDI:" << QString::fromStdString(error.getMessage());
     }
 }
+
 
 // Destructor
 MidiEngine::~MidiEngine() {
@@ -86,13 +94,40 @@ void MidiEngine::openMidiDevice(int index) {
 
 // Start MIDI input
 void MidiEngine::startMidiInput() {
-    if (midiIn && !midiIn->isPortOpen()) {
-        midiIn->openPort(0); // Default to first port
-        midiIn->setCallback(&midiCallback, this);
-        midiIn->ignoreTypes(false, true, true);
-        qDebug() << "MIDI input started.";
+    if (!midiIn) {
+        qDebug() << "midiIn is null. Cannot set callback.";
+        return;
+    }
+    if (midiIn) {
+        try {
+            // Attempt to open the port
+            try {
+                midiIn->openPort(0);
+                qDebug() << "MIDI port opened successfully.";
+            }
+            catch (RtMidiError& error) {
+                qDebug() << "Failed to open MIDI port:" << QString::fromStdString(error.getMessage());
+                return;
+            }
+            qDebug() << "Attempting to set MIDI callback...";
+
+            // Set the callback
+            midiIn->setCallback(&midiCallback, this);
+            qDebug() << "MIDI callback successfully set.";
+
+            // Ignore certain message types
+            midiIn->ignoreTypes(false, true, true);
+            qDebug() << "MIDI input started on device:" << QString::fromStdString(midiIn->getPortName(0));
+        }
+        catch (RtMidiError& error) {
+            qDebug() << "Error starting MIDI input:" << QString::fromStdString(error.getMessage());
+        }
+    }
+    else {
+        qDebug() << "MIDI input is null. Initialization failed.";
     }
 }
+
 
 // List all input devices
 void MidiEngine::listInputDevices() {
@@ -131,44 +166,68 @@ void MidiEngine::stopRecording() {
 // Callback function definition
 void midiCallback(double deltaTime, std::vector<unsigned char>* message, void* userData) {
     MidiEngine* engine = static_cast<MidiEngine*>(userData);
-
     if (!message || message->empty()) return;
 
     unsigned char status = message->at(0);
     unsigned char data1 = message->size() > 1 ? message->at(1) : 0;
     unsigned char data2 = message->size() > 2 ? message->at(2) : 0;
 
-    // Log incoming MIDI messages
     qDebug() << "Received MIDI Message:"
         << "Status:" << QString::number(status, 16)
         << "Data1:" << data1
         << "Data2:" << data2;
 
-    // Process recording
     if (engine->isRecording) {
-        auto& sequencer = *engine->getSequencer(); // Dereference pointer to get reference
-
-        if (sequencer.getTrackCount() > 0) {
-            Track& activeTrack = sequencer.getTrack(0); // Initialize activeTrack
+        Sequencer* sequencer = engine->getSequencer();
+        if (sequencer->getTrackCountQml() > 0 && sequencer->getSelectedTrackIndexQml() >= 0) {
+            int selectedTrack = sequencer->getSelectedTrackIndexQml();
+            Track& track = sequencer->getTrack(selectedTrack);
 
             MidiEventType type = (status & 0xF0) == 0x90 && data2 > 0 ? MidiEventType::NoteOn
                 : (status & 0xF0) == 0x80 || data2 == 0 ? MidiEventType::NoteOff
                 : MidiEventType::ControlChange;
 
             MidiEvent event(
-                sequencer.getCurrentTick(), // Correct tick value
-                type,                       // Correct MidiEventType
-                status & 0x0F,              // Channel
-                data1,                      // Pitch
-                data2                       // Velocity
+                sequencer->getCurrentTick(),
+                type,
+                status & 0x0F,
+                data1,
+                data2
                 );
 
-            activeTrack.addEvent(event);
-            qDebug() << "Recorded Event:" << "Tick:" << event.tick
+            track.addEvent(event);
+
+            qDebug() << "Recorded Event:" << "Track:" << selectedTrack
+                << "Tick:" << event.tick
                 << "Type:" << static_cast<int>(event.type)
                 << "Channel:" << event.channel
                 << "Pitch:" << event.pitch
                 << "Velocity:" << event.velocity;
         }
+        else {
+            qDebug() << "No valid track selected for recording.";
+        }
     }
+}
+
+void MidiEngine::startPlayback() {
+    sequencer.setMidiOutputCallback([this](const MidiEvent& event) {
+        // Convert MidiEvent to raw MIDI message
+        std::vector<unsigned char> message = {
+            static_cast<unsigned char>((event.type == MidiEventType::NoteOn ? 0x90 : 0x80) | (event.channel & 0x0F)),
+            static_cast<unsigned char>(event.pitch & 0x7F),
+            static_cast<unsigned char>(event.velocity & 0x7F)
+        };
+        midiOut->sendMessage(&message);
+        });
+
+    sequencer.startQml();
+}
+
+void MidiEngine::stopPlayback() {
+    sequencer.stopQml();
+}
+
+void MidiEngine::rewindPlayback() {
+    sequencer.rewind();
 }

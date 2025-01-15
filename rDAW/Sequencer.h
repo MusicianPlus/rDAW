@@ -21,6 +21,7 @@ public:
     void start();
     void stop();
     void setTempo(double bpm);
+    Q_INVOKABLE void rewind();
 
     // Callback for sending MIDI messages
     void setMidiOutputCallback(std::function<void(const MidiEvent&)> callback);
@@ -36,6 +37,10 @@ public:
     Q_INVOKABLE void setTempoQml(double bpm);          // Set tempo (QML)
     Q_INVOKABLE void removeTrackQml(int index);         // Remove track (QML)
 
+    // Selected Track Management
+    Q_INVOKABLE int getSelectedTrackIndexQml() const;
+    Q_INVOKABLE void setSelectedTrackIndexQml(int index);
+
 signals:
     void playbackPositionChanged(double tick);
 
@@ -46,6 +51,7 @@ private:
     double currentTick;
 
     std::function<void(const MidiEvent&)> midiOutputCallback;
+    int selectedTrackIndex = -1; // Keep track of the selected track
 
     void playbackLoop(); // Internal playback engine
 };

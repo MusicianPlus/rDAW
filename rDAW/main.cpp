@@ -5,24 +5,24 @@
 
 int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
-
     QQmlApplicationEngine engine;
 
-    // Register the Sequencer class for QML
-    qmlRegisterType<Sequencer>("Sequencer", 1, 0, "Sequencer");
-
-    // Create an instance of MidiEngine
     MidiEngine midiEngine;
 
-    // Expose MidiEngine to QML
-    engine.rootContext()->setContextProperty("midiEngine", &midiEngine);
+    // Expose both MidiEngine and Sequencer to QML
+    engine.rootContext()->setContextProperty("backend", &midiEngine);
+    engine.rootContext()->setContextProperty("sequencer", midiEngine.getSequencer());
 
-    // Load the main QML file
-    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+    // Start MIDI input immediately
+    midiEngine.startMidiInput();
 
-    if (engine.rootObjects().isEmpty()) {
-        return -1;
-    }
+    const QUrl url(QStringLiteral("qrc:/main.qml"));
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
+        &app, [url](QObject* obj, const QUrl& objUrl) {
+            if (!obj && url == objUrl)
+                QCoreApplication::exit(-1);
+        }, Qt::QueuedConnection);
+    engine.load(url);
 
     return app.exec();
 }

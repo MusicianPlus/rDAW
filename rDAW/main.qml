@@ -5,81 +5,193 @@ ApplicationWindow {
     visible: true
     width: 1000
     height: 600
-    title: "Dynamic Timeline - Fixed"
+    title: "Playback & Recording Controls"
 
     ListModel {
         id: trackModel
     }
 
+    property bool isPlaying: false
+    property bool isRecording: false
+
     Column {
+        spacing: 10
         anchors.fill: parent
 
-        // Track List Controls
+        // Playback and Recording Controls
+        Row {
+            spacing: 20
+            height: 50
+            anchors.horizontalCenter: parent.horizontalCenter
+
+
+
+            Button {
+                text: isPlaying ? "Stop" : "Play"
+                onClicked: {
+                    isPlaying = !isPlaying;
+                    if (isPlaying) {
+                        backend.startPlayback();
+                    } else {
+                        backend.stopPlayback();
+                    }
+                }
+            }
+
+           Button {
+                text: "Rewind"
+                onClicked: {
+                    backend.rewindPlayback();
+                }
+            }
+
+            Button {
+                text: isRecording ? "Stop Recording" : "Record"
+                onClicked: {
+                    isRecording = !isRecording;
+                    if (isRecording) {
+                        backend.startRecording();
+                    } else {
+                        backend.stopRecording();
+                    }
+                }
+            }
+
+            Slider {
+                id: tempoSlider
+                from: 60
+                to: 180
+                value: 120
+                stepSize: 1
+                width: 200
+                onValueChanged: {
+                    sequencer.setTempoQml(value);
+                }
+            }
+
+            Text {
+                text: "Tempo: " + tempoSlider.value + " BPM"
+            }
+        }
+
+        // Timeline and Track List
         Row {
             spacing: 10
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: parent.height - 150
+
+            // Track Names (Fixed Column)
+            Flickable {
+                id: trackNamesScroll
+                width: parent.width * 0.3
+                height: parent.height - 150
+                contentHeight: trackModel.count * 60
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+
+                Column {
+                    spacing: 10
+                    width: trackNamesScroll.width
+                    height: trackNamesScroll.contentHeight
+
+                    Repeater {
+                        model: trackModel
+
+                        Rectangle {
+                            width: trackNamesScroll.width
+                            height: 50
+                            color: index === sequencer.getSelectedTrackIndexQml() ? "lightblue" : "transparent"
+                            border.color: "black"
+
+                            Text {
+                                text: model.name
+                                anchors.centerIn: parent
+                                color: "black"
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    sequencer.setSelectedTrackIndexQml(index);
+                                    console.log("Track selected:", model.name, "at index:", index);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Timeline Events
+            Flickable {
+                id: eventScroll
+                width: parent.width * 0.7
+                height: parent.height - 150
+                contentWidth: 2000
+                contentHeight: trackModel.count * 60
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+
+                Column {
+                    spacing: 10
+                    width: eventScroll.contentWidth
+                    height: eventScroll.contentHeight
+
+                    Repeater {
+                        model: trackModel
+
+                        Row {
+                            spacing: 10
+                            height: 50
+
+                            Repeater {
+                                model: 8
+                                Rectangle {
+                                    width: 40
+                                    height: 40
+                                    color: "red"
+                                    border.color: "black"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add/Remove Track Buttons
+        Row {
+            spacing: 10
+            height: 50
             anchors.horizontalCenter: parent.horizontalCenter
 
             Button {
                 text: "Add Track"
                 onClicked: {
                     let trackName = "Track " + (trackModel.count + 1);
-                    trackModel.append({ "name": trackName }); // Ensure "name" is defined
+                    trackModel.append({ "name": trackName });
+                    sequencer.addTrackQml(trackName);
                     console.log("Track added:", trackName);
                 }
             }
 
             Button {
-                text: "Remove Track"
+                text: "Remove Selected Track"
                 onClicked: {
-                    if (trackModel.count > 0) {
-                        trackModel.remove(trackModel.count - 1);
-                        console.log("Last track removed.");
-                    }
-                }
-            }
-        }
+                    let selectedIndex = sequencer.getSelectedTrackIndexQml();
+                    if (selectedIndex >= 0 && trackModel.count > 0) {
+                        trackModel.remove(selectedIndex);
+                        sequencer.removeTrackQml(selectedIndex);
+                        console.log("Removed track at index:", selectedIndex);
 
-        // Timeline
-        Flickable {
-            width: parent.width
-            height: parent.height - 100
-            contentWidth: 2000 // Scrollable horizontally
-            contentHeight: trackModel.count * 60 // Dynamic height for track rows
-            clip: true
-
-            Column {
-                width: 2000 // Match Flickable's contentWidth
-                spacing: 10
-
-                Repeater {
-                    model: trackModel
-
-                    Row {
-                        spacing: 10
-                        height: 50
-
-                        // Track Name
-                        Text {
-                            text: model.name || "Unnamed Track" // Fallback to prevent undefined
-                            width: 100
-                            color: "black"
-                        }
-
-                        // Placeholder Events
-                        Repeater {
-                            model: 8 // Placeholder: 8 events per track
-                            Rectangle {
-                                width: 40
-                                height: 40
-                                color: "red"
-                                border.color: "black"
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: index + 1
-                                }
-                            }
-                        }
+                        // Reset selection
+                        sequencer.setSelectedTrackIndexQml(
+                            trackModel.count > 0
+                            ? Math.min(selectedIndex, trackModel.count - 1)
+                            : -1
+                        );
+                    } else {
+                        console.log("No track selected or empty list.");
                     }
                 }
             }

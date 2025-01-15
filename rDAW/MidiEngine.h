@@ -31,6 +31,11 @@ public:
     Q_INVOKABLE void listOutputDevices();
     Q_INVOKABLE void startRecording();
     Q_INVOKABLE void stopRecording();
+    Q_INVOKABLE void startPlayback();
+    Q_INVOKABLE void stopPlayback();
+    Q_INVOKABLE void rewindPlayback();
+
+
 
 private:
     Sequencer sequencer;
