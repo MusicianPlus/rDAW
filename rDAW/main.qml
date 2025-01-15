@@ -13,6 +13,7 @@ ApplicationWindow {
 
     property bool isPlaying: false
     property bool isRecording: false
+    property int playheadPosition: 0 // Tracks the playhead position
 
     Column {
         spacing: 10
@@ -118,16 +119,9 @@ ApplicationWindow {
                         }
                     }
                 }
-
-                // Sync scrolling with timeline
-                onContentYChanged: {
-                    if (eventScroll.contentY !== contentY) {
-                        eventScroll.contentY = contentY;
-                    }
-                }
             }
 
-            // Timeline Events
+            // Timeline Events and Playhead
             Flickable {
                 id: eventScroll
                 width: parent.width * 0.7
@@ -137,35 +131,42 @@ ApplicationWindow {
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
 
-                Column {
-                    spacing: 10
+                Item {
                     width: eventScroll.contentWidth
                     height: eventScroll.contentHeight
 
-                    Repeater {
-                        model: trackModel
+                    // Playhead
+                    Rectangle {
+                        id: playhead
+                        width: 2
+                        height: parent.height
+                        color: "blue"
+                        x: playheadPosition
+                    }
 
-                        Row {
-                            spacing: 10
-                            height: 50
+                    Column {
+                        spacing: 10
+                        width: parent.width
+                        height: parent.height
 
-                            Repeater {
-                                model: 8
-                                Rectangle {
-                                    width: 40
-                                    height: 40
-                                    color: "red"
-                                    border.color: "black"
+                        Repeater {
+                            model: trackModel
+
+                            Row {
+                                spacing: 10
+                                height: 50
+
+                                Repeater {
+                                    model: 8
+                                    Rectangle {
+                                        width: 40
+                                        height: 40
+                                        color: "red"
+                                        border.color: "black"
+                                    }
                                 }
                             }
                         }
-                    }
-                }
-
-                // Sync scrolling with track names
-                onContentYChanged: {
-                    if (trackNamesScroll.contentY !== contentY) {
-                        trackNamesScroll.contentY = contentY;
                     }
                 }
             }
@@ -209,4 +210,18 @@ ApplicationWindow {
             }
         }
     }
+
+    // Bind playhead to Sequencer playback signal
+        Connections {
+            target: sequencer
+            function onPlaybackPositionChanged(tick) {
+                playheadPosition = tick * 2; // Adjust tick-to-pixel ratio
+            }
+        }
+        Connections {
+            target: sequencer
+            function onTempoChanged(bpm) {
+                tempoSlider.value = bpm; // Update the slider if tempo changes programmatically
+            }
+        }
 }

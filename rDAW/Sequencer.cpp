@@ -45,28 +45,24 @@ void Sequencer::stop() {
     qDebug() << "Playback stopped";
 }
 
-// Set the tempo
-void Sequencer::setTempo(double bpm) {
-    tempo = bpm;
-    qDebug() << "Tempo set to:" << bpm << "BPM";
-}
-
 // Playback loop
 void Sequencer::playbackLoop() {
     while (isPlaying) {
-        QThread::msleep(50); // Simulate a 50ms step for playback
-        currentTick += 1;    // Advance playback position
-        emit playbackPositionChanged(currentTick); // Signal for real-time UI updates
+        double tickDurationMs = 60000.0 / (tempo * 480); // Duration of one tick in milliseconds
+        QThread::msleep(static_cast<unsigned long>(tickDurationMs));
+        currentTick += 1;
+
+        emit playbackPositionChanged(currentTick);
 
         // Debug the current tick
-        qDebug() << "Playback tick:" << currentTick;
+        qDebug() << "Playback tick:" << currentTick << "Tempo:" << tempo;
 
         // Process events for each track
         for (auto& track : tracks) {
             for (const auto& event : track.events) {
                 if (event.tick == currentTick) {
                     if (midiOutputCallback) {
-                        midiOutputCallback(event); // Send the event to MIDI out
+                        midiOutputCallback(event);
                     }
                     qDebug() << "Playback Event:"
                         << "Tick:" << event.tick
@@ -80,6 +76,12 @@ void Sequencer::playbackLoop() {
     }
 }
 
+// Set tempo
+void Sequencer::setTempo(double bpm) {
+    tempo = bpm;
+    emit tempoChanged(tempo); // Notify listeners
+    qDebug() << "Tempo set to:" << bpm << "BPM";
+}
 
 // Wrapper for QML: Add track
 void Sequencer::addTrackQml(const QString& name) {

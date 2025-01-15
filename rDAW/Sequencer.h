@@ -43,6 +43,7 @@ public:
 
 signals:
     void playbackPositionChanged(double tick);
+    void tempoChanged(double bpm);
 
 private:
     std::vector<Track> tracks;
