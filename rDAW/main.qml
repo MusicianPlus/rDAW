@@ -143,13 +143,43 @@ ApplicationWindow {
 Repeater {
     model: trackModel
 
-    Item {
+    Row {
         width: trackNamesScroll.width
         height: 50
+        spacing: 0
 
+        // 1. Instrument Button (square on the left)
+        Rectangle {
+            id: instButton
+            width: 40
+            height: 40
+            anchors.verticalCenter: parent.verticalCenter
+            color: "#aaaaaa"  // Gray background
+            border.color: "black"
+            Text {
+                text: "Inst"
+                anchors.centerIn: parent
+                color: "black"
+            }
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    console.log("Instrument button clicked for track index:", index)
+                    // Possibly open an instrument selection dialog, or do anything else
+                }
+            }
+        }
+
+        // 2. Main Track Name area (click to select)
         Rectangle {
             id: trackRect
-            anchors.fill: parent
+            anchors.verticalCenter: parent.verticalCenter
+            // Subtract the squares' widths from the total for a flexible width
+            // (We have 40px for Inst, 40px for Mute, 40px for Solo, plus spacing)
+            // For simplicity, just do: width: parent.width - 130
+            // Alternatively, set a fixed width if you prefer
+            width: Math.max(parent.width - 130, 50)
+            height: 50
             color: index === sequencer.selectedTrackIndex ? "lightblue" : "transparent"
             border.color: "black"
 
@@ -166,9 +196,68 @@ Repeater {
                     console.log("Track selected:", model.name, "at index:", index);
                 }
             }
+            }
+
+        // 3. Mute Button
+        Rectangle {
+            id: muteButton
+            width: 40
+            height: 40
+            anchors.verticalCenter: parent.verticalCenter
+
+            // Turn red if muted, grey if not
+            color: model.mute ? "#cc4444" : "#aaaaaa"
+            border.color: "black"
+
+            Text {
+                text: "M"
+                anchors.centerIn: parent
+                color: "black"
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    let newMute = !model.mute
+                    trackModel.setProperty(index, "mute", newMute)
+                    console.log("Mute toggled for track index:", index, "=>", newMute)
+                    // Here you could also call a C++ function to actually mute playback 
+                    // e.g. sequencer.setTrackMute(index, newMute)
+                }
+            }
+        }
+
+        // 4. Solo Button
+        Rectangle {
+            id: soloButton
+            width: 40
+            height: 40
+            anchors.verticalCenter: parent.verticalCenter
+
+            // Turn yellow if soloed, grey if not
+            color: model.solo ? "#eeee44" : "#aaaaaa"
+            border.color: "black"
+
+            Text {
+                text: "S"
+                anchors.centerIn: parent
+                color: "black"
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    let newSolo = !model.solo
+                    trackModel.setProperty(index, "solo", newSolo)
+                    console.log("Solo toggled for track index:", index, "=>", newSolo)
+                    // Potentially you want logic that unsolos other tracks if only one track can be solo
+                    // e.g. if (newSolo) un-solo other tracks, etc.
+                }
+            }
         }
     }
 }
+
 
 
 
@@ -287,7 +376,13 @@ Repeater {
                     onClicked: {
                         let trackName = "Track " + (trackModel.count + 1);
                         // Add new track with recordStart=0, recordEnd=0
-                        trackModel.append({ "name": trackName, "recordStart": 0, "recordEnd": 0 });
+                        trackModel.append({
+                            "name": trackName,
+                            "recordStart": 0,
+                            "recordEnd": 0,
+                            "mute": false,
+                            "solo": false
+                        });
                         sequencer.addTrackQml(trackName);
                         console.log("Track added:", trackName);
                     }
