@@ -34,8 +34,8 @@ public:
     Q_INVOKABLE void startPlayback();
     Q_INVOKABLE void stopPlayback();
     Q_INVOKABLE void rewindPlayback();
-
-
+    Q_INVOKABLE QStringList getAvailableMidiOutputDevices();
+    Q_INVOKABLE void openMidiOutputDevice(int index);
 
 private:
     Sequencer sequencer;

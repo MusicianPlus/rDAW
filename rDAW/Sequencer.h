@@ -8,6 +8,7 @@
 
 class Sequencer : public QObject {
     Q_OBJECT
+    Q_PROPERTY(int selectedTrackIndex READ getSelectedTrackIndexQml NOTIFY selectedTrackIndexChanged)
 
 public:
     explicit Sequencer(QObject* parent = nullptr);
@@ -36,6 +37,7 @@ public:
     Q_INVOKABLE void stopQml();                        // Stop playback (QML)
     Q_INVOKABLE void setTempoQml(double bpm);          // Set tempo (QML)
     Q_INVOKABLE void removeTrackQml(int index);         // Remove track (QML)
+    Q_INVOKABLE void renameTrackQml(int index, const QString& newName);
 
     // Selected Track Management
     Q_INVOKABLE int getSelectedTrackIndexQml() const;
@@ -47,6 +49,7 @@ public:
 signals:
     void playbackPositionChanged(double tick);
     void tempoChanged(double bpm);
+    void selectedTrackIndexChanged(); // Signal declaration
 
 private:
     std::vector<Track> tracks;

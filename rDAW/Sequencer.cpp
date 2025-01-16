@@ -2,6 +2,7 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QThread>
 #include <QDebug>
+#include <QElapsedTimer>
 
 // Constructor
 Sequencer::Sequencer(QObject* parent)
@@ -45,42 +46,91 @@ void Sequencer::stop() {
     qDebug() << "Playback stopped";
 }
 
-// Playback loop
-void Sequencer::playbackLoop() {
-    while (isPlaying) {
-        double tickDurationMs = 60000.0 / (tempo * 480); // Duration of one tick in milliseconds
-        QThread::msleep(static_cast<unsigned long>(tickDurationMs));
-        currentTick += 1;
 
-        // Handle looping
-        if (isLooping && currentTick >= loopEnd) {
-            currentTick = loopStart;
+void Sequencer::playbackLoop()
+{
+    qDebug() << "Entered playbackLoop";
+
+    QElapsedTimer timer;
+    timer.start();
+
+    // Start from the currentTick if you wish to continue where you left off,
+    // or just set currentTick = 0 before starting playback if you want a fresh start.
+    int lastProcessedTick = currentTick;
+
+    while (isPlaying) {
+        // Time (ms) since playbackLoop started
+        qint64 elapsedMs = timer.elapsed();
+
+        // This converts your tempo + PPQ into "ticks per millisecond"
+        double ticksPerMs = (tempo * 480.0) / 60000.0;  // Hard-coded 480 PPQ
+
+        // How many ticks "should" have passed by now
+        int idealTick = static_cast<int>(elapsedMs * ticksPerMs);
+
+        // Optional debug output
+        qDebug() << "Loop iteration: elapsedMs=" << elapsedMs
+            << "tempo=" << tempo
+            << "ticksPerMs=" << ticksPerMs
+            << "idealTick=" << idealTick
+            << "lastProcessedTick=" << lastProcessedTick
+            << "isLooping=" << isLooping;
+
+        // Looping logic
+        if (isLooping && idealTick >= loopEnd) {
+            // Wrap around
+            int overshoot = idealTick - loopEnd;
+            idealTick = loopStart + overshoot;
+            // Restart timer so elapsedMs resets from 0 at this new loop point
+            timer.restart();
+
+            qDebug() << "Looping back to" << idealTick
+                << "(timer restarted)";
+        }
+
+        // If for some reason idealTick is less than lastProcessedTick (e.g. from looping),
+        // reset lastProcessedTick to avoid negative loops.
+        if (idealTick < lastProcessedTick) {
+            lastProcessedTick = idealTick;
+        }
+
+        // Process each tick from (lastProcessedTick+1) to (idealTick)
+        for (int t = lastProcessedTick + 1; t <= idealTick; ++t) {
+            currentTick = t;
+
+            // Check all tracks for events at this tick
+            for (auto& track : tracks) {
+                for (auto& event : track.events) {
+                    if (event.tick == currentTick) {
+                        qDebug() << "Playback Event at tick:" << currentTick
+                            << "Type:" << static_cast<int>(event.type)
+                            << "Channel:" << event.channel
+                            << "Pitch:" << event.pitch
+                            << "Velocity:" << event.velocity;
+
+                        // If there's a MIDI output callback, trigger it
+                        if (midiOutputCallback) {
+                            midiOutputCallback(event);
+                        }
+                    }
+                }
+            }
+
+            // Notify QML UI about the currentTick for the playhead
             emit playbackPositionChanged(currentTick);
         }
 
-        emit playbackPositionChanged(currentTick);
+        // Update lastProcessedTick to the new ideal
+        lastProcessedTick = idealTick;
 
-        // Debug the current tick
-        qDebug() << "Playback tick:" << currentTick << "Tempo:" << tempo;
-
-        // Process events for each track
-        for (auto& track : tracks) {
-            for (const auto& event : track.events) {
-                if (event.tick == currentTick) {
-                    if (midiOutputCallback) {
-                        midiOutputCallback(event);
-                    }
-                    qDebug() << "Playback Event:"
-                        << "Tick:" << event.tick
-                        << "Type:" << static_cast<int>(event.type)
-                        << "Channel:" << event.channel
-                        << "Pitch:" << event.pitch
-                        << "Velocity:" << event.velocity;
-                }
-            }
-        }
+        // Sleep a bit to avoid maxing out the CPU
+        QThread::msleep(1);
     }
+
+    qDebug() << "Playback loop ended";
 }
+
+
 
 // Set tempo
 void Sequencer::setTempo(double bpm) {
@@ -132,6 +182,7 @@ void Sequencer::setSelectedTrackIndexQml(int index) {
     if (index >= 0 && index < static_cast<int>(tracks.size())) {
         selectedTrackIndex = index;
         qDebug() << "Selected track index set to:" << index;
+        emit selectedTrackIndexChanged(); // Notify QML
     }
     else {
         qDebug() << "Invalid track index selected:" << index;
@@ -157,4 +208,14 @@ void Sequencer::setLoopRange(int start, int end) {
 void Sequencer::setLooping(bool looping) {
     isLooping = looping;
     qDebug() << "Looping set to:" << looping;
+}
+
+void Sequencer::renameTrackQml(int index, const QString& newName) {
+    if (index >= 0 && index < static_cast<int>(tracks.size())) {
+        tracks[index].name = newName.toStdString();  // or use a setter if you have one
+        qDebug() << "Renamed track at index" << index << "to" << newName;
+    }
+    else {
+        qDebug() << "Invalid track index for renaming:" << index;
+    }
 }

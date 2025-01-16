@@ -14,6 +14,8 @@ ApplicationWindow {
     property bool isPlaying: false
     property bool isRecording: false
     property int playheadPosition: 0
+    property int selectedIndex: -1
+    property double pixelRate: 0.1
 
     Column {
         spacing: 10
@@ -28,11 +30,11 @@ ApplicationWindow {
             Button {
                 text: isPlaying ? "Stop" : "Play"
                 onClicked: {
-                    isPlaying = !isPlaying;
+                    isPlaying = !isPlaying
                     if (isPlaying) {
-                        backend.startPlayback();
+                        backend.startPlayback()
                     } else {
-                        backend.stopPlayback();
+                        backend.stopPlayback()
                     }
                 }
             }
@@ -44,17 +46,26 @@ ApplicationWindow {
                 }
             }
 
-            Button {
+            Button {  //problem here idk
                 text: isRecording ? "Stop Recording" : "Record"
                 onClicked: {
-                    isRecording = !isRecording;
+                    isRecording = !isRecording
+                    let selectedIndex = sequencer.getSelectedTrackIndexQml()
+
                     if (isRecording) {
-                        backend.startRecording();
+                        backend.startRecording()
+                        if (selectedIndex >= 0) {
+                            let startTick = sequencer.getCurrentTickQml()
+                            trackModel.setProperty(selectedIndex, "recordStart", startTick)
+                            trackModel.setProperty(selectedIndex, "recordEnd", startTick)
+                        }
                     } else {
-                        backend.stopRecording();
+                        backend.stopRecording()
+                        // Optionally finalize recordEnd here, or just leave it as is
                     }
                 }
             }
+
 
             Slider {
                 id: tempoSlider
@@ -92,7 +103,9 @@ ApplicationWindow {
                 placeholderText: "Loop Start"
                 width: 80
                 onEditingFinished: {
-                    sequencer.setLoopRange(parseInt(loopStartInput.text), parseInt(loopEndInput.text));
+                    console.log("Loop Start:", parseFloat(loopStartInput.text), 
+                        "Loop End:", parseFloat(loopEndInput.text));
+                    sequencer.setLoopRange(parseFloat(loopStartInput.text), parseFloat(loopEndInput.text));
                 }
             }
 
@@ -101,7 +114,7 @@ ApplicationWindow {
                 placeholderText: "Loop End"
                 width: 80
                 onEditingFinished: {
-                    sequencer.setLoopRange(parseInt(loopStartInput.text), parseInt(loopEndInput.text));
+                    sequencer.setLoopRange(parseFloat(loopStartInput.text), parseFloat(loopEndInput.text));
                 }
             }
         }
@@ -117,7 +130,7 @@ ApplicationWindow {
             Flickable {
                 id: trackNamesScroll
                 width: parent.width * 0.3
-                height: parent.height - 150
+                height: parent.height - 50
                 contentHeight: trackModel.count * 60
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -127,30 +140,38 @@ ApplicationWindow {
                     width: trackNamesScroll.width
                     height: trackNamesScroll.contentHeight
 
-                    Repeater {
-                        model: trackModel
+Repeater {
+    model: trackModel
 
-                        Rectangle {
-                            width: trackNamesScroll.width
-                            height: 50
-                            color: index === sequencer.getSelectedTrackIndexQml() ? "lightblue" : "transparent"
-                            border.color: "black"
+    Item {
+        width: trackNamesScroll.width
+        height: 50
 
-                            Text {
-                                text: model.name
-                                anchors.centerIn: parent
-                                color: "black"
-                            }
+        Rectangle {
+            id: trackRect
+            anchors.fill: parent
+            color: index === sequencer.selectedTrackIndex ? "lightblue" : "transparent"
+            border.color: "black"
 
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: {
-                                    sequencer.setSelectedTrackIndexQml(index);
-                                    console.log("Track selected:", model.name, "at index:", index);
-                                }
-                            }
-                        }
-                    }
+            Text {
+                text: model.name
+                anchors.centerIn: parent
+                color: "black"
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    sequencer.setSelectedTrackIndexQml(index);
+                    console.log("Track selected:", model.name, "at index:", index);
+                }
+            }
+        }
+    }
+}
+
+
+
                 }
 
                 // Sync with eventScroll
@@ -165,7 +186,7 @@ ApplicationWindow {
             Flickable {
                 id: eventScroll
                 width: parent.width * 0.7
-                height: parent.height - 150
+                height: parent.height - 50
                 contentWidth: 2000
                 contentHeight: trackModel.count * 60
                 clip: true
@@ -176,6 +197,8 @@ ApplicationWindow {
                     width: eventScroll.contentWidth
                     height: eventScroll.contentHeight
 
+                    // Instead of your existing "Repeater { model: 8 ... }"
+                    // we have ONE rectangle per track to show recordStart->recordEnd
                     Repeater {
                         model: trackModel
 
@@ -183,55 +206,92 @@ ApplicationWindow {
                             spacing: 10
                             height: 50
 
-                            Repeater {
-                                model: 8
-                                Rectangle {
-                                    width: 40
-                                    height: 40
-                                    color: "red"
-                                    border.color: "black"
-                                }
+                            Rectangle {
+                                id: patternRect
+                                color: "red"
+                                border.color: "black"
+                                height: 40
+
+                                // Convert ticks to pixels. Suppose 2 px per tick:
+                                x: model.recordStart * pixelRate
+                                width: (model.recordEnd - model.recordStart) * pixelRate
+
+                                // If recordEnd==recordStart, the width is 0, effectively hidden
+                                // Or you can explicitly hide it if you prefer:
+                                visible: model.recordEnd > model.recordStart
                             }
                         }
                     }
                 }
 
-                // Sync with trackNamesScroll
-                onContentYChanged: {
-                    if (trackNamesScroll.contentY !== contentY) {
-                        trackNamesScroll.contentY = contentY;
-                    }
-                }
+    Rectangle {
+        id: playhead
+        width: 2
+        height: eventScroll.height
+        color: "blue"
+        x: playheadPosition
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        visible: true
+    }
 
-                // Playhead
-                Rectangle {
-                    id: playhead
-                    width: 2
-                    height: eventScroll.height
-                    color: "blue"
-                    x: playheadPosition
-                    anchors.top: eventScroll.top
-                    anchors.bottom: eventScroll.bottom
-                    visible: true
-                }
-            }
+    // Sync with trackNamesScroll
+    onContentYChanged: {
+        if (trackNamesScroll.contentY !== contentY) {
+            trackNamesScroll.contentY = contentY;
+        }
+    }
+}
         }
 
         // Add/Remove Track Buttons
         Row {
-            spacing: 10
+            spacing: 40
             height: 50
             anchors.horizontalCenter: parent.horizontalCenter
 
-            Button {
-                text: "Add Track"
-                onClicked: {
-                    let trackName = "Track " + (trackModel.count + 1);
-                    trackModel.append({ "name": trackName });
-                    sequencer.addTrackQml(trackName);
-                    console.log("Track added:", trackName);
+            ComboBox {
+                id: outputDeviceCombo
+                model: backend.getAvailableMidiOutputDevices() // 'backend' is your MidiEngine
+                // This signal passes the new index and text automatically
+                onActivated: function() {
+                    console.log("Activated index:", currentIndex, "Device:", currentText)
+                    backend.openMidiOutputDevice(currentIndex)
                 }
             }
+
+            TextField {
+                    id: renameField
+                    placeholderText: "New Name"
+                    width: 120
+                }
+
+                Button {
+                    text: "Rename Track"
+                    onClicked: {
+                        let selectedIndex = sequencer.getSelectedTrackIndexQml();
+                        if (selectedIndex >= 0) {
+                            // Update the QML ListModel
+                            trackModel.setProperty(selectedIndex, "name", renameField.text);
+
+                            // Update the Sequencer in C++
+                            sequencer.renameTrackQml(selectedIndex, renameField.text);
+                        } else {
+                            console.log("No valid track selected.");
+                        }
+                    }
+                }
+
+                Button {
+                    text: "Add Track"
+                    onClicked: {
+                        let trackName = "Track " + (trackModel.count + 1);
+                        // Add new track with recordStart=0, recordEnd=0
+                        trackModel.append({ "name": trackName, "recordStart": 0, "recordEnd": 0 });
+                        sequencer.addTrackQml(trackName);
+                        console.log("Track added:", trackName);
+                    }
+                }
 
             Button {
                 text: "Remove Selected Track"
@@ -256,8 +316,18 @@ ApplicationWindow {
     }
             Connections {
             target: sequencer
-            function onPlaybackPositionChanged(tick) {
-                playheadPosition = tick * 2; // Adjust tick-to-pixel ratio if needed
+            function onSelectedTrackIndexChanged() {
+                console.log("Selected track index changed:", sequencer.getSelectedTrackIndexQml());
             }
+            function onPlaybackPositionChanged(tick) {
+                playheadPosition = tick * pixelRate; // Adjust tick-to-pixel ratio if needed
+                if (isRecording) { //problem here idk
+                    let selectedIndex = sequencer.getSelectedTrackIndexQml();
+                    if (selectedIndex >= 0) {
+                        trackModel.setProperty(selectedIndex, "recordEnd", tick);
+                    }
+                }
+            }
+
         }
 }
