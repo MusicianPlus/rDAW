@@ -39,6 +39,10 @@ public:
     Q_INVOKABLE void removeTrackQml(int index);         // Remove track (QML)
     Q_INVOKABLE void renameTrackQml(int index, const QString& newName);
 
+    Q_INVOKABLE double getCurrentTickQml() const {
+        return getCurrentTick();
+    }
+
     // Selected Track Management
     Q_INVOKABLE int getSelectedTrackIndexQml() const;
     Q_INVOKABLE void setSelectedTrackIndexQml(int index);

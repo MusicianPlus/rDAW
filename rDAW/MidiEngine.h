@@ -1,6 +1,7 @@
 #ifndef MIDIENGINE_H
 #define MIDIENGINE_H
 
+#include <QVariantList>
 #include <QObject>
 #include "libs/rtmidi/RtMidi.h"
 #include <QString>
@@ -36,6 +37,10 @@ public:
     Q_INVOKABLE void rewindPlayback();
     Q_INVOKABLE QStringList getAvailableMidiOutputDevices();
     Q_INVOKABLE void openMidiOutputDevice(int index);
+
+    // Function to load a sound file and generate waveform data.
+    // Now returns a JSON string.
+    Q_INVOKABLE QString loadSoundFile(const QString& filePath = QString());
 
 private:
     Sequencer sequencer;
