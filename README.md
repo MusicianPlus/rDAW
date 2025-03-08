@@ -4,5 +4,4 @@ DAW software for Resolute Audio devices.
 
 •Run LV2 plugins
 
-•And a few cool things more
-
+•And a few more cool things
