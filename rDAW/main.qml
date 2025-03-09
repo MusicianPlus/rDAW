@@ -1,11 +1,22 @@
 import QtQuick 6.8
 import QtQuick.Controls 6.8
+import QtQuick.Controls.Material 6.8
 
 ApplicationWindow {
     visible: true
-    width: 1000
-    height: 600
+    width: 1280
+    height: 400
     title: "rDAW MVP"
+    color: "#ffffff"
+
+    // Use the Material style for non-native customization.
+    Material.theme: Material.Light
+    Material.accent: "#2196F3"
+
+    flags: Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.FramelessWindowHint
+
+    maximumWidth: width
+    maximumHeight: height
 
     ListModel {
         id: trackModel
@@ -17,35 +28,68 @@ ApplicationWindow {
     property int selectedIndex: -1
     property double pixelRate: 0.1
 
-    Column {
-        spacing: 10
-        anchors.fill: parent
+    // Top Bar (Playback/Recording controls)
+    Rectangle {
+        id: topBar
+        anchors.top: parent.top
+        width: parent.width
+        height: 70
+        color: Material.accent
 
-        // Playback and Recording Controls
         Row {
+            anchors.fill: parent
+            anchors.margins: 10
             spacing: 20
-            height: 30
-            anchors.horizontalCenter: parent.horizontalCenter
 
+            // Touch-friendly custom Button style
             Button {
+                id: playButton
                 text: isPlaying ? "Stop" : "Play"
+                height: 50
+                width: 100
+                font.pixelSize: 16
+                background: Rectangle {
+                    radius: 2
+                    color: playButton.down ? "#1976D2" : "#2196F3"
+                    border.color: "#424242"
+                    border.width: 1
+                }
                 onClicked: {
                     isPlaying = !isPlaying
-                    if (isPlaying) {
+                    if (isPlaying)
                         backend.startPlayback()
-                    } else {
+                    else
                         backend.stopPlayback()
-                    }
                 }
             }
 
             Button {
+                id: rewindButton
                 text: "Rewind"
+                height: 50
+                width: 100
+                font.pixelSize: 16
+                background: Rectangle {
+                    radius: 2
+                    color: rewindButton.down ? "#1976D2" : "#2196F3"
+                    border.color: "#424242"
+                    border.width: 1
+                }
                 onClicked: backend.rewindPlayback()
             }
 
             Button {
+                id: recordButton
                 text: isRecording ? "Stop Recording" : "Record"
+                height: 50
+                width: 120
+                font.pixelSize: 16
+                background: Rectangle {
+                    radius: 2
+                    color: recordButton.down ? "#1976D2" : "#2196F3"
+                    border.color: "#424242"
+                    border.width: 1
+                }
                 onClicked: {
                     isRecording = !isRecording
                     let selectedIndex = sequencer.getSelectedTrackIndexQml()
@@ -63,20 +107,31 @@ ApplicationWindow {
             }
 
             Button {
+                id: loadSoundButton
                 text: "Load Sound"
+                height: 50
+                width: 120
+                font.pixelSize: 16
+                background: Rectangle {
+                    radius: 2
+                    color: loadSoundButton.down ? "#1976D2" : "#2196F3"
+                    border.color: "#424242"
+                    border.width: 1
+                }
                 onClicked: {
                     let selectedIndex = sequencer.getSelectedTrackIndexQml()
                     if (selectedIndex >= 0) {
                         const currentTick = sequencer.getCurrentTickQml()
                         trackModel.setProperty(selectedIndex, "hasWaveform", true)
                         trackModel.setProperty(selectedIndex, "waveformStart", currentTick)
-                        trackModel.setProperty(selectedIndex, "waveformEnd", currentTick + 1000) // 1000 ticks default length
-                        const waveformData = backend.loadSoundFile(); // Get waveform data from backend
+                        trackModel.setProperty(selectedIndex, "waveformEnd", currentTick + 1000)
+                        const waveformData = backend.loadSoundFile();
                         trackModel.setProperty(selectedIndex, "waveformData", waveformData);
                     }
                 }
             }
 
+            // Tempo Slider
             Slider {
                 id: tempoSlider
                 from: 60
@@ -84,18 +139,50 @@ ApplicationWindow {
                 value: 120
                 stepSize: 1
                 width: 200
+                height: 50
                 onValueChanged: sequencer.setTempoQml(value)
+
+                background: Rectangle {
+                    x: tempoSlider.leftPadding
+                    y: tempoSlider.topPadding + tempoSlider.availableHeight / 2 - height / 2
+                    implicitWidth: 200
+                    implicitHeight: 4
+                    width: tempoSlider.availableWidth
+                    height: implicitHeight
+                    radius: 2
+                    color: "#bdbebf"
+
+                    Rectangle {
+                        width: tempoSlider.visualPosition * parent.width
+                        height: parent.height
+                        color: "#21be2b"
+                        radius: 2
+                    }
+                }
+
+                handle: Rectangle {
+                    x: tempoSlider.leftPadding + tempoSlider.visualPosition * (tempoSlider.availableWidth - width)
+                    y: tempoSlider.topPadding + tempoSlider.availableHeight / 2 - height / 2
+                    implicitWidth: 26
+                    implicitHeight: 26
+                    radius: 13
+                    color: tempoSlider.pressed ? "#f0f0f0" : "#f6f6f6"
+                    border.color: "#bdbebf"
+                }
             }
 
             Text {
                 text: "Tempo: " + tempoSlider.value + " BPM"
+                height: 50
+                font.pixelSize: 16
+                color: "white"
+                verticalAlignment: Text.AlignVCenter
             }
-
-            // Looping Controls
 
             CheckBox {
                 id: loopingToggle
                 text: "Enable Looping"
+                font.pixelSize: 16
                 onCheckedChanged: sequencer.setLooping(checked)
             }
 
@@ -103,6 +190,8 @@ ApplicationWindow {
                 id: loopStartInput
                 placeholderText: "Loop Start"
                 width: 80
+                height: 50
+                font.pixelSize: 16
                 onEditingFinished: updateLoopRange()
             }
 
@@ -110,6 +199,8 @@ ApplicationWindow {
                 id: loopEndInput
                 placeholderText: "Loop End"
                 width: 80
+                height: 50
+                font.pixelSize: 16
                 onEditingFinished: updateLoopRange()
             }
 
@@ -120,27 +211,158 @@ ApplicationWindow {
                 )
             }
         }
+    }
 
-        // Timeline and Track List
+    // Main Content Area (Timeline and Track List)
+    Rectangle {
+        id: mainContent
+        anchors.top: topBar.bottom
+        anchors.bottom: bottomBar.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        color: "transparent"
+
         Row {
+            anchors.fill: parent
             spacing: 10
-            anchors.left: parent.left
-            anchors.right: parent.right
-            height: parent.height - 150
 
-            // Track Names (Fixed Column)
+            // Track Names Column
             Flickable {
-                id: trackNamesScroll
-                width: (parent.width - parent.spacing) * 0.3
-                height: parent.height - 50
-                contentHeight: trackModel.count * 60
+    id: trackNamesScroll
+    width: parent.width * 0.3
+    height: parent.height
+    contentHeight: trackColumn.height
+    clip: true
+    boundsBehavior: Flickable.StopAtBounds
+    flickDeceleration: 2000
+
+    Rectangle {
+        anchors.fill: parent
+        color: "#f7f7f7"
+    }
+
+    Column {
+        id: trackColumn
+        spacing: 10
+        width: parent.width
+        padding: 5
+
+        Repeater {
+            model: trackModel
+            delegate: Rectangle {
+                // Each track item has a fixed height, subtle border, and slight rounding.
+                width: parent.width - 10  // leave some margin
+                height: 60
+                color: (index === sequencer.selectedTrackIndex) ? "#E3F2FD" : "#FFFFFF"
+                border.color: "#B0BEC5"
+                border.width: 1
+                radius: 4
+
+                Row {
+                    anchors.fill: parent
+                    anchors.margins: 0
+                    spacing: 0
+
+                    // Instrument Icon
+                    Rectangle {
+                        width: 60
+                        height: 60
+                        radius: 4
+                        color: "#bdbdbd"
+                        border.color: "#424242"
+                        border.width: 1
+                        Text {
+                            text: "Inst"
+                            anchors.centerIn: parent
+                            font.pixelSize: 14
+                            color: "#424242"
+                        }
+                    }
+
+                    // Track Name (expands as needed)
+                    Text {
+                        text: model.name
+                        font.pixelSize: 16
+                        color: "#212121"
+                        height: 60
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        // Using Layout.fillWidth if using a layout; otherwise it stretches by default.
+                        // Alternatively, you could set width: parent.width - 40 - 40 - 40 - 8*3
+                        // Here we let it fill the remaining space.
+                        //Layout.fillWidth: true
+                        width: parent.width - 60 - 60 - 60
+                    }
+
+                    // Mute Button
+                    Rectangle {
+                        width: 60
+                        height: 60
+                        radius: 4
+                        color: model.mute ? "#E57373" : "#bdbdbd"
+                        border.color: "#424242"
+                        border.width: 1
+                        Text {
+                            text: "M"
+                            anchors.centerIn: parent
+                            font.pixelSize: 16
+                            color: model.mute ? "white" : "#424242"
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: trackModel.setProperty(index, "mute", !model.mute)
+                        }
+                    }
+
+                    // Solo Button
+                    Rectangle {
+                        width: 60
+                        height: 60
+                        radius: 4
+                        color: model.solo ? "#FFF176" : "#bdbdbd"
+                        border.color: "#424242"
+                        border.width: 1
+                        Text {
+                            text: "S"
+                            anchors.centerIn: parent
+                            font.pixelSize: 16
+                            color: model.solo ? "white" : "#424242"
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: trackModel.setProperty(index, "solo", !model.solo)
+                        }
+                    }
+                }
+
+                // Allow tapping anywhere on the item to select the track.
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: sequencer.setSelectedTrackIndexQml(index)
+                }
+            }
+        }
+    }
+
+    // Sync scrolling with the timeline (if needed)
+    onContentYChanged: {
+        if (eventScroll && eventScroll.contentY !== contentY)
+            eventScroll.contentY = contentY;
+    }
+}
+
+
+            // Timeline Events Column
+            Flickable {
+                id: eventScroll
+                width: parent.width * 0.7
+                height: parent.height
+                contentWidth: 2000
+                contentHeight: trackModel.count * 70
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: "#f0f0f0"
-                }
+                flickDeceleration: 2000
 
                 Column {
                     spacing: 10
@@ -148,113 +370,21 @@ ApplicationWindow {
 
                     Repeater {
                         model: trackModel
-
-                        Row {
-                            width: trackNamesScroll.width
-                            height: 50
-                            spacing: 0
-
-                            Rectangle {
-                                width: 40
-                                height: 40
-                                anchors.verticalCenter: parent.verticalCenter
-                                color: "#aaaaaa"
-                                border.color: "black"
-                                Text {
-                                    text: "Inst"
-                                    anchors.centerIn: parent
-                                }
-                            }
-
-                            Rectangle {
-                                width: parent.width - 130
-                                height: 50
-                                color: index === sequencer.selectedTrackIndex ? "lightblue" : "white"
-                                border.color: "black"
-                                Text {
-                                    text: model.name
-                                    anchors.centerIn: parent
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    onClicked: sequencer.setSelectedTrackIndexQml(index)
-                                }
-                            }
-
-                            Rectangle {
-                                width: 40
-                                height: 40
-                                anchors.verticalCenter: parent.verticalCenter
-                                color: model.mute ? "#cc4444" : "#aaaaaa"
-                                border.color: "black"
-                                Text {
-                                    text: "M"
-                                    anchors.centerIn: parent
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    onClicked: trackModel.setProperty(index, "mute", !model.mute)
-                                }
-                            }
-
-                            Rectangle {
-                                width: 40
-                                height: 40
-                                anchors.verticalCenter: parent.verticalCenter
-                                color: model.solo ? "#eeee44" : "#aaaaaa"
-                                border.color: "black"
-                                Text {
-                                    text: "S"
-                                    anchors.centerIn: parent
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    onClicked: trackModel.setProperty(index, "solo", !model.solo)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                onContentYChanged: {
-                    if (eventScroll.contentY !== contentY) {
-                        eventScroll.contentY = contentY
-                    }
-                }
-            }
-
-            // Timeline Events
-            Flickable {
-                id: eventScroll
-                width: parent.width * 0.7
-                height: parent.height - 50
-                contentWidth: 2000
-                contentHeight: trackModel.count * 60
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-
-                Column {
-                    spacing: 0
-                    width: parent.width
-
-                    Repeater {
-                        model: trackModel
-
                         Rectangle {
                             width: parent.width
                             height: 60
                             color: "transparent"
 
-                            // Pattern Rectangle
+                            // Recording Pattern Rectangle
                             Rectangle {
                                 id: patternRect
-                                color: "red"
-                                border.color: "black"
-                                height: 40
+                                color: "#EF5350"
+                                radius: 2
+                                height: 60
                                 x: model.recordStart * pixelRate
                                 width: (model.recordEnd - model.recordStart) * pixelRate
                                 visible: model.recordEnd > model.recordStart
+                                y: 5
                             }
 
                             // Waveform Box
@@ -263,155 +393,115 @@ ApplicationWindow {
                                 visible: model.hasWaveform
                                 x: model.waveformStart * pixelRate
                                 width: (model.waveformEnd - model.waveformStart) * pixelRate
-                                height: 40
-                                color: "lightgreen"
-                                border.color: "darkgreen"
+                                height: 60
+                                color: "#81C784"
+                                radius: 2
                                 y: 5
 
-                                // Canvas for drawing the waveform
                                 Canvas {
                                     id: waveformCanvas
                                     anchors.fill: parent
                                     antialiasing: true
-
                                     onPaint: {
                                         var ctx = getContext("2d");
-                                        ctx.clearRect(0, 0, width, height); // Clear the canvas
-
-                                        // Check if waveform data exists
-                                        if (!model.waveformData || model.waveformData.length === 0) {
-                                            console.log("No waveform data available.");
+                                        ctx.clearRect(0, 0, width, height);
+                                        if (!model.waveformData || model.waveformData.length === 0)
                                             return;
-                                        }
-
-                                        // Parse waveform data (assuming it's an array of values between -1 and 1)
                                         let waveformPoints;
                                         try {
                                             waveformPoints = JSON.parse(model.waveformData);
-                                            console.log("Parsed waveform data");
-
                                         } catch (e) {
-                                            console.error("Error parsing waveform data:", e);
                                             return;
                                         }
-
-                                        // Draw the waveform
                                         ctx.beginPath();
-                                        ctx.strokeStyle = "darkgreen";
+                                        ctx.strokeStyle = "#388E3C";
                                         ctx.lineWidth = 2;
-
                                         for (let i = 0; i < waveformPoints.length; i++) {
                                             const x = (i / (waveformPoints.length - 1)) * width;
-                                            const y = (1 - (waveformPoints[i] + 1) / 2) * height; // Normalize to canvas height
-
-                                            if (i === 0) {
+                                            const y = (1 - (waveformPoints[i] + 1) / 2) * height;
+                                            if (i === 0)
                                                 ctx.moveTo(x, y);
-                                            } else {
+                                            else
                                                 ctx.lineTo(x, y);
-                                            } 
                                         }
-
                                         ctx.stroke();
                                     }
-
-                                    // Redraw when waveform data changes
                                     Connections {
                                         target: trackModel
                                         function onDataChanged() {
-                                            if (index === sequencer.selectedTrackIndex) {
+                                            if (index === sequencer.selectedTrackIndex)
                                                 waveformCanvas.requestPaint();
-                                            }
                                         }
                                     }
                                 }
 
-
-                                // Left handle
+                                // Left Handle
                                 Rectangle {
                                     width: 20
                                     height: parent.height
-                                    color: "darkgreen"
+                                    color: "#388E3C"
+                                    radius: 2
                                     anchors.left: parent.left
-        
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.SizeHorCursor
                                         propagateComposedEvents: false
                                         preventStealing: true
-            
                                         property real pressX: 0
                                         property real initialStart: 0
-            
                                         onPressed: {
-                                            pressX = mapToItem(eventScroll.contentItem, mouseX, 0).x
-                                            initialStart = model.waveformStart
-                                            eventScroll.interactive = false
+                                            pressX = mapToItem(eventScroll.contentItem, mouseX, 0).x;
+                                            initialStart = model.waveformStart;
+                                            eventScroll.interactive = false;
                                         }
-            
                                         onPositionChanged: {
                                             if (pressed) {
-                                                const currentX = mapToItem(eventScroll.contentItem, mouseX, 0).x
-                                                const delta = (currentX - pressX) / pixelRate
-                                                const newStart = Math.max(0, Math.round(initialStart + delta))
-                    
-                                                if (newStart < model.waveformEnd) {
-                                                    trackModel.setProperty(index, "waveformStart", newStart)
-                                                }
+                                                const currentX = mapToItem(eventScroll.contentItem, mouseX, 0).x;
+                                                const delta = (currentX - pressX) / pixelRate;
+                                                const newStart = Math.max(0, Math.round(initialStart + delta));
+                                                if (newStart < model.waveformEnd)
+                                                    trackModel.setProperty(index, "waveformStart", newStart);
                                             }
                                         }
-            
-                                        onReleased: {
-                                            eventScroll.interactive = true
-                                        }
-            
+                                        onReleased: eventScroll.interactive = true
                                         onClicked: mouse.accepted = true
                                     }
                                 }
 
-                                // Right handle
+                                // Right Handle
                                 Rectangle {
                                     width: 20
                                     height: parent.height
-                                    color: "darkgreen"
+                                    color: "#388E3C"
+                                    radius: 2
                                     anchors.right: parent.right
-        
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.SizeHorCursor
                                         propagateComposedEvents: false
                                         preventStealing: true
-            
                                         property real pressX: 0
                                         property real initialEnd: 0
-            
                                         onPressed: {
-                                            pressX = mapToItem(eventScroll.contentItem, mouseX, 0).x
-                                            initialEnd = model.waveformEnd
-                                            eventScroll.interactive = false
+                                            pressX = mapToItem(eventScroll.contentItem, mouseX, 0).x;
+                                            initialEnd = model.waveformEnd;
+                                            eventScroll.interactive = false;
                                         }
-            
                                         onPositionChanged: {
                                             if (pressed) {
-                                                const currentX = mapToItem(eventScroll.contentItem, mouseX, 0).x
-                                                const delta = (currentX - pressX) / pixelRate
-                                                const newEnd = Math.round(initialEnd + delta)
-                    
-                                                if (newEnd > model.waveformStart) {
-                                                    trackModel.setProperty(index, "waveformEnd", newEnd)
-                                                }
+                                                const currentX = mapToItem(eventScroll.contentItem, mouseX, 0).x;
+                                                const delta = (currentX - pressX) / pixelRate;
+                                                const newEnd = Math.round(initialEnd + delta);
+                                                if (newEnd > model.waveformStart)
+                                                    trackModel.setProperty(index, "waveformEnd", newEnd);
                                             }
                                         }
-            
-                                        onReleased: {
-                                            eventScroll.interactive = true
-                                        }
-            
+                                        onReleased: eventScroll.interactive = true
                                         onClicked: mouse.accepted = true
-
                                     }
                                 }
 
-                                // Middle drag area
+                                // Middle Drag Area (move waveform)
                                 MouseArea {
                                     anchors.fill: parent
                                     anchors.leftMargin: 20
@@ -419,69 +509,67 @@ ApplicationWindow {
                                     cursorShape: Qt.OpenHandCursor
                                     propagateComposedEvents: false
                                     preventStealing: true
-        
                                     property real pressX: 0
                                     property real initialX: 0
-        
                                     onPressed: {
-                                        pressX = mapToItem(eventScroll.contentItem, mouseX, 0).x
-                                        initialX = waveformBox.x
-                                        eventScroll.interactive = false
+                                        pressX = mapToItem(eventScroll.contentItem, mouseX, 0).x;
+                                        initialX = waveformBox.x;
+                                        eventScroll.interactive = false;
                                     }
-        
                                     onPositionChanged: {
                                         if (pressed) {
-                                            const currentX = mapToItem(eventScroll.contentItem, mouseX, 0).x
-                                            const delta = currentX - pressX
-                                            const newX = Math.max(0, initialX + delta)
-                
-                                            const newStart = Math.round(newX / pixelRate)
-                                            const duration = model.waveformEnd - model.waveformStart
-                                            const newEnd = newStart + duration
-                
+                                            const currentX = mapToItem(eventScroll.contentItem, mouseX, 0).x;
+                                            const delta = currentX - pressX;
+                                            const newX = Math.max(0, initialX + delta);
+                                            const newStart = Math.round(newX / pixelRate);
+                                            const duration = model.waveformEnd - model.waveformStart;
+                                            const newEnd = newStart + duration;
                                             if (newEnd * pixelRate <= eventScroll.contentWidth) {
-                                                trackModel.setProperty(index, "waveformStart", newStart)
-                                                trackModel.setProperty(index, "waveformEnd", newEnd)
+                                                trackModel.setProperty(index, "waveformStart", newStart);
+                                                trackModel.setProperty(index, "waveformEnd", newEnd);
                                             }
                                         }
                                     }
-        
-                                    onReleased: {
-                                        eventScroll.interactive = true
-                                    }
-        
+                                    onReleased: eventScroll.interactive = true
                                     onClicked: mouse.accepted = true
                                 }
                             }
                         }
                     }
                 }
-
                 Rectangle {
                     id: playhead
                     width: 2
                     height: parent.height
-                    color: "blue"
+                    color: "#42A5F5"
                     x: playheadPosition
                 }
-
                 onContentYChanged: {
-                    if (trackNamesScroll.contentY !== contentY) {
-                        trackNamesScroll.contentY = contentY
-                    }
+                    if (trackNamesScroll.contentY !== contentY)
+                        trackNamesScroll.contentY = contentY;
                 }
             }
         }
+    }
 
-        // Add/Remove Track Buttons
+    // Bottom Bar (Track management)
+    Rectangle {
+        id: bottomBar
+        anchors.bottom: parent.bottom
+        width: parent.width
+        height: 70
+        color: Material.accent
+
         Row {
+            anchors.fill: parent
+            anchors.margins: 10
             spacing: 40
-            height: 50
-            anchors.horizontalCenter: parent.horizontalCenter
 
             ComboBox {
                 id: outputDeviceCombo
                 model: backend.getAvailableMidiOutputDevices()
+                height: 50
+                font.pixelSize: 16
                 onActivated: backend.openMidiOutputDevice(currentIndex)
             }
 
@@ -489,10 +577,22 @@ ApplicationWindow {
                 id: renameField
                 placeholderText: "New Name"
                 width: 120
+                height: 50
+                font.pixelSize: 16
             }
 
             Button {
+                id: renameButton
                 text: "Rename Track"
+                height: 50
+                width: 120
+                font.pixelSize: 16
+                background: Rectangle {
+                    radius: 2
+                    color: renameButton.down ? "#1976D2" : "#2196F3"
+                    border.color: "#424242"
+                    border.width: 1
+                }
                 onClicked: {
                     let selectedIndex = sequencer.getSelectedTrackIndexQml()
                     if (selectedIndex >= 0) {
@@ -503,7 +603,17 @@ ApplicationWindow {
             }
 
             Button {
+                id: addTrackButton
                 text: "Add Track"
+                height: 50
+                width: 120
+                font.pixelSize: 16
+                background: Rectangle {
+                    radius: 2
+                    color: addTrackButton.down ? "#1976D2" : "#2196F3"
+                    border.color: "#424242"
+                    border.width: 1
+                }
                 onClicked: {
                     let trackName = "Track " + (trackModel.count + 1)
                     trackModel.append({
@@ -515,14 +625,24 @@ ApplicationWindow {
                         "hasWaveform": false,
                         "waveformStart": 0,
                         "waveformEnd": 0,
-                        "waveformData": "[]" // Initialize with empty array
+                        "waveformData": "[]"
                     })
                     sequencer.addTrackQml(trackName)
                 }
             }
 
             Button {
+                id: removeTrackButton
                 text: "Remove Selected Track"
+                height: 50
+                width: 150
+                font.pixelSize: 16
+                background: Rectangle {
+                    radius: 2
+                    color: removeTrackButton.down ? "#1976D2" : "#2196F3"
+                    border.color: "#424242"
+                    border.width: 1
+                }
                 onClicked: {
                     let selectedIndex = sequencer.getSelectedTrackIndexQml()
                     if (selectedIndex >= 0 && trackModel.count > 0) {
@@ -546,9 +666,8 @@ ApplicationWindow {
             playheadPosition = tick * pixelRate
             if (isRecording) {
                 let selectedIndex = sequencer.getSelectedTrackIndexQml()
-                if (selectedIndex >= 0) {
+                if (selectedIndex >= 0)
                     trackModel.setProperty(selectedIndex, "recordEnd", tick)
-                }
             }
         }
     }
